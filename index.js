@@ -4,7 +4,7 @@
 // init project
 const express = require('express')
 const app = express()
-const port = 443 //3000
+const port = 3000 // 443
 
 // enable CORS (https://en.wikipedia.org/wiki/Cross-origin_resource_sharing)
 // so that your API is remotely testable by FCC
@@ -34,9 +34,10 @@ app.get( '/api/', function (req, res) {
 
 // second API endpoint
 app.get( '/api/:date?', function (req, res) {
-  let reqParams = req.params.date
-  const regexCheckUnix = /^\d{13}$/
-  const regexCheckUtc = /^\d{4}-\d{2}-\d{2}$/
+  let reqParams = req.params.date // Request object value
+  const regexCheckUnix = /^\d{13}$/ // Number of milliseconds elapsed since January 1, 1970 00:00:00 UTC
+  const regexCheckUtc = /^\d{4}$|^\d{4}-\d{2}$|^\d{4}-\d{2}-\d{2}$|^\d{4}-\d{2}-\d{2}T([01][0-9]|[2][0-4]):([0-5][0-9])$|^\d{4}-\d{2}-\d{2}T([01][0-9]|[2][0-4]):([0-5][0-9]):([0-5][0-9])$|^\d{4}-\d{2}-\d{2}T([01][0-9]|[2][0-4]):([0-5][0-9]):([0-5][0-9])\.[0-9][0-9][0-9](Z|(\-|\+)([01][0-9]|[2][0-4]):([0-5][0-9]))$/ // Date Time String Format in the ECMAScript specification https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/parse https://tc39.es/ecma262/#sec-date-time-string-format
+
 
   // Check if request match regex
   if (reqParams.match(regexCheckUnix)) {
