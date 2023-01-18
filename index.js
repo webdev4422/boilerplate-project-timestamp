@@ -34,23 +34,33 @@ app.get( '/api/', function (req, res) {
 
 // second API endpoint
 app.get( '/api/:date?', function (req, res) {
-  let reqParams = req.params.date // Request object value
-  const regexCheckUnix = /^\d{13}$/ // Number of milliseconds elapsed since January 1, 1970 00:00:00 UTC
-  const regexCheckUtc = /^\d{4}$|^\d{4}-\d{2}$|^\d{4}-\d{2}-\d{2}$|^\d{4}-\d{2}-\d{2}T([01][0-9]|[2][0-4]):([0-5][0-9])$|^\d{4}-\d{2}-\d{2}T([01][0-9]|[2][0-4]):([0-5][0-9]):([0-5][0-9])$|^\d{4}-\d{2}-\d{2}T([01][0-9]|[2][0-4]):([0-5][0-9]):([0-5][0-9])\.[0-9][0-9][0-9](Z|(\-|\+)([01][0-9]|[2][0-4]):([0-5][0-9]))$/ // Date Time String Format in the ECMAScript specification https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/parse https://tc39.es/ecma262/#sec-date-time-string-format
+  // Request object value
+  let reqParams = req.params.date
+  // Number of milliseconds elapsed since January 1, 1970 00:00:00 UTC
+  const regexCheckUnix = /^\d{13}$/
+  // Date Time String Format in the ECMAScript specification https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/parse https://tc39.es/ecma262/#sec-date-time-string-format
+  const regexCheckUtc = /^\d{4}$|^\d{4}-\d{2}$|^\d{4}-\d{2}-\d{2}$|^\d{4}-\d{2}-\d{2}T([01][0-9]|[2][0-4]):([0-5][0-9])$|^\d{4}-\d{2}-\d{2}T([01][0-9]|[2][0-4]):([0-5][0-9]):([0-5][0-9])$|^\d{4}-\d{2}-\d{2}T([01][0-9]|[2][0-4]):([0-5][0-9]):([0-5][0-9])\.[0-9][0-9][0-9](Z|(\-|\+)([01][0-9]|[2][0-4]):([0-5][0-9]))$/
 
 
-  // Check if request match regex
+  // Check if request match regex unix timestamp (number of milliseconds)
   if (reqParams.match(regexCheckUnix)) {
     let convertUnixToUtc = (new Date (Number(reqParams))).toUTCString() // Tue, 12 May 2020 23:50:21 GMT
     let paramToNumber = Number(reqParams) // typeof 1451001600000
     res.json({unix: paramToNumber, utc: convertUnixToUtc})
     // console.log(`Request params: ${paramToNumber}\nResponse: 'unix: ${reqParams}, utc: ${convertUnixToUtc}'`)
 
+  // Check if request match regex date
   } else if (reqParams.match(regexCheckUtc)) {
     let convertDateToUnix = new Date (reqParams).getTime()
     let convertDateToUnixToUtc = (new Date (Number(convertDateToUnix))).toUTCString()
-    res.json({unix: convertDateToUnix, utc: convertDateToUnixToUtc})
-    // console.log(`Request params: ${reqParams}\nResponse: 'unix: ${convertDateToUnix}, utc: ${convertDateToUnixToUtc}'`)
+    // If date not pass parsing 'Date.parse()'
+    if (convertDateToUnixToUtc == "Invalid Date") {
+      res.json({error : "Invalid Date"})
+    } else {
+      res.json({unix: convertDateToUnix, utc: convertDateToUnixToUtc})
+      // console.log(`Request params: ${reqParams}\nResponse: 'unix: ${convertDateToUnix}, utc: ${convertDateToUnixToUtc}'`)
+    }
+
 
   } else {
     res.json({error : "Invalid Date"})
