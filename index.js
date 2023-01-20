@@ -21,8 +21,11 @@ app.get('/', function (req, res) {
 
 
 // TODO:
-// GET: /api/1451001600000 should return {unix: 1451001600000, utc: "Fri, 25 Dec 2015 00:00:00 GMT"}
-// GET: /api/2015-12-25 should return {unix: 1451001600000, utc: "Fri, 25 Dec 2015 00:00:00 GMT"}
+// GET: /api -> return current date in format: {unix: 1451001600000, utc: "Fri, 25 Dec 2015 00:00:00 GMT"}
+// GET: /api/1451001600000 -> return {unix: 1451001600000, utc: "Fri, 25 Dec 2015 00:00:00 GMT"}
+// GET: /api/2015-12-25 -> return {unix: 1451001600000, utc: "Fri, 25 Dec 2015 00:00:00 GMT"}
+// GET: /api/05 October 2011, GMT -> return {unix: 1317772800000, utc: "Wed, 05 Oct 2011 00:00:00 GMT"}
+// GET: /api/this-is-not-a-date -> return {error : "Invalid Date"}
 // Source: Using Route parameters https://expressjs.com/en/guide/routing.html
 
 
@@ -38,34 +41,35 @@ app.get( '/api/:date?', function (req, res) {
   let reqParams = req.params.date
   // Number of milliseconds elapsed since January 1, 1970 00:00:00 UTC
   const regexCheckUnix = /^\d{13}$/
-  // Date Time String Format in the ECMAScript specification https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/parse https://tc39.es/ecma262/#sec-date-time-string-format
-  const regexCheckUtc = /^\d{4}$|^\d{4}-\d{2}$|^\d{4}-\d{2}-\d{2}$|^\d{4}-\d{2}-\d{2}T([01][0-9]|[2][0-4]):([0-5][0-9])$|^\d{4}-\d{2}-\d{2}T([01][0-9]|[2][0-4]):([0-5][0-9]):([0-5][0-9])$|^\d{4}-\d{2}-\d{2}T([01][0-9]|[2][0-4]):([0-5][0-9]):([0-5][0-9])\.[0-9][0-9][0-9](Z|(\-|\+)([01][0-9]|[2][0-4]):([0-5][0-9]))$/
-
 
   // Check if request match regex unix timestamp (number of milliseconds)
   if (reqParams.match(regexCheckUnix)) {
-    let convertUnixToUtc = (new Date (Number(reqParams))).toUTCString() // Tue, 12 May 2020 23:50:21 GMT
-    let paramToNumber = Number(reqParams) // typeof 1451001600000
-    res.json({unix: paramToNumber, utc: convertUnixToUtc})
-    // console.log(`Request params: ${paramToNumber}\nResponse: 'unix: ${reqParams}, utc: ${convertUnixToUtc}'`)
+    let convertUnixToUtc = new Date (Number(reqParams)).toUTCString() // Tue, 12 May 2020 23:50:21 GMT
+    let paramsToNumber = Number(reqParams) // typeof 1451001600000
+    res.json({unix: paramsToNumber, utc: convertUnixToUtc})
+    // console.log(`Request params: ${paramsToNumber}\nResponse: 'unix: ${reqParams}, utc: ${convertUnixToUtc}'`)
 
-  // Check if request match regex date
-  } else if (reqParams.match(regexCheckUtc)) {
-    let convertDateToUnix = new Date (reqParams).getTime()
-    let convertDateToUnixToUtc = (new Date (Number(convertDateToUnix))).toUTCString()
-    // If date not pass parsing 'Date.parse()'
-    if (convertDateToUnixToUtc == "Invalid Date") {
-      res.json({error : "Invalid Date"})
-    } else {
-      res.json({unix: convertDateToUnix, utc: convertDateToUnixToUtc})
-      // console.log(`Request params: ${reqParams}\nResponse: 'unix: ${convertDateToUnix}, utc: ${convertDateToUnixToUtc}'`)
-    }
-
-
+  // Check if request is compatible with ISO format or extended date formats
   } else {
-    res.json({error : "Invalid Date"})
-    // console.log(`Request params: ${reqParams}\nResponse: 'error : "Invalid Date"'`)
+    try {
+      // Convert to ISO format, parsing of a non–standard string value that may not be correctly parsed in non–Mozilla browsers (https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toISOString).
+      let convertDateToIso = new Date(reqParams).toISOString()
+      // Convert to UTC format
+      let convertDateToUtc = new Date (convertDateToIso).toUTCString()
+      // Convert to unix timestamp
+      let convertDateToUnix = new Date (reqParams).getTime()
+
+      res.json({unix: convertDateToUnix, utc: convertDateToUtc})
+      // console.log(`Request params: ${reqParams}\nResponse: 'unix: ${convertDateToUnix}, utc: ${convertDateToUtc}'`)
+
+    // Other cases send error
+    } catch (error) {
+      // console.error(error) // output may be browser-dependent
+      res.json({error : "Invalid Date"})
+      // console.log(`Request params: ${reqParams}\nResponse: 'error : "Invalid Date"'`)
+    }
   }
+
 })
 
 
@@ -73,3 +77,32 @@ app.get( '/api/:date?', function (req, res) {
 const listener = app.listen(port, process.env.PORT, function () {
   console.log('Your app is listening on port ' + listener.address().port)
 })
+
+
+/*
+  Issue with "05 October 2011, GMT" (05%20October%202011,%20GMT) date string is that it doesn't conform to ISO 8601 format (https://tc39.es/ecma262/#sec-date-time-string-format), but is required to pass "Your project can handle dates that can be successfully parsed by new Date(date_string)" test (https://www.freecodecamp.org/learn/back-end-development-and-apis/back-end-development-and-apis-projects/timestamp-microservice).
+
+  The ECMAScript specification states: If the String does not conform to the standard format the function may fall back to any implementation–specific heuristics or implementation–specific parsing algorithm (https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/parse#fall-back_to_implementation-specific_date_formats).
+
+
+  So I making code to handle special cases, WIP...
+
+  // My regex to check "Date Time String Format" in the ECMAScript specification (ISO 8601 format) https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/parse https://tc39.es/ecma262/#sec-date-time-string-format
+  const regexCheckUtc = /^\d{4}$|^\d{4}-\d{2}$|^\d{4}-\d{2}-\d{2}$|^\d{4}-\d{2}-\d{2}T([01][0-9]|[2][0-4]):([0-5][0-9])$|^\d{4}-\d{2}-\d{2}T([01][0-9]|[2][0-4]):([0-5][0-9]):([0-5][0-9])$|^\d{4}-\d{2}-\d{2}T([01][0-9]|[2][0-4]):([0-5][0-9]):([0-5][0-9])\.[0-9][0-9][0-9](Z|(\-|\+)([01][0-9]|[2][0-4]):([0-5][0-9]))$/
+  // Check if request match regex date
+  if (reqParams.match(regexCheckUtc)) {
+    let convertDateToUnix = new Date (reqParams).getTime()
+    let convertDateToUnixToUtc = new Date (Number(convertDateToUnix)).toUTCString()
+    // If date not pass parsing 'Date.parse()'
+    if (convertDateToUnixToUtc == "Invalid Date") {
+      res.json({error : "Invalid Date"})
+    } else {
+      res.json({unix: convertDateToUnix, utc: convertDateToUnixToUtc})
+      // console.log(`Request params: ${reqParams}\nResponse: 'unix: ${convertDateToUnix}, utc: ${convertDateToUnixToUtc}'`)
+    }
+  }
+
+  // Handle special case: not ISO 8601 format, another way to convert to ISO string
+  // My regex to check extended NOT COMPLETE!
+  const regexCheckExtended = /^\d{1,2}\s((Jan|January)|(Feb|February)|(Mar|March)|(Apr|April)|May|(Jun|June)|(Jul|July)|(Aug|August)|(Sep|September)|(Oct|October)|(Nov|November)|(Dec|December))\s\d{4},\s\w{3}$/
+*/
